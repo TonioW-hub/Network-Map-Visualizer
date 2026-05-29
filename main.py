@@ -1,5 +1,6 @@
 from scapy.all import ARP, Ether, srp
 import keyboard, socket, ipaddress, pyvis
+from pyvis.network import Network
 
 class Appareil :
     
@@ -48,7 +49,6 @@ a = arp_scan(str(ipc.network)) # ipc.network → 192.168.1.0/24 (l'adresse du r�
 
 for device in a:
     app = Appareil(device['ip'], device['mac'])
-    print(f"\nIP: {device['ip']} | MAC: {device['mac']}")
     for i in ports:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM) #TCP et non udp
         s.settimeout(0.1)
@@ -56,7 +56,6 @@ for device in a:
         s.close()
         if result == 0:
             app.ajouterPort(i)
-            print(f"Port {i} ouvert")
 
     if 22 in app.portsOpen:
             app.definirType("Linux / Mac (SSH)")
@@ -73,3 +72,28 @@ for device in a:
     
 for app in listeAppareils:
     app.sortirAppareil()
+    
+gateway = str(list(ipaddress.ip_network(str(ipc.network)).hosts())[-1])
+
+net = Network(height="100vh", width="100%", bgcolor="#0a0e1a", font_color="white")
+
+net.add_node(gateway, label=f"🌐 Routeur\n{gateway}", color="#00ff9f", size=30)
+
+couleurs = {
+    "Linux / Mac (SSH)": "#fd79a8",
+    "Windows": "#74b9ff",
+    "routeur ou serveur web": "#00ff9f",
+    "VNC": "#a29bfe",
+    "iPhone": "#fdcb6e",
+}
+
+for app in listeAppareils:
+    if not app.type:
+        continue
+    type_label = ", ".join(app.type)
+    couleur = couleurs.get(app.type[0], "#636e72")
+    label = f"{type_label}\n{app.ip}\n{app.mac}"
+    net.add_node(app.ip, label=label, color=couleur, size=20)
+    net.add_edge(gateway, app.ip)
+
+net.show("map.html", notebook=False)
